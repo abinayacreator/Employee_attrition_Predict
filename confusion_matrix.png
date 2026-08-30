@@ -1,0 +1,69 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "1eae7343",
+   "metadata": {},
+   "source": [
+    "# Employee Attrition Prediction\n",
+    "Complete ML workflow for the 100-mark project rubric."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "80a024f8",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "import matplotlib.pyplot as plt\n",
+    "df=pd.read_csv('../data/employee_attrition.csv')\n",
+    "df.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "053f94c8",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "print(df.shape)\n",
+    "print(df['Attrition'].value_counts())\n",
+    "print(df.isnull().sum().sum(), 'total missing values')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "0b2ce6fd",
+   "metadata": {},
+   "source": [
+    "## EDA\n",
+    "See generated figures in `reports/figures`."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "6eb0050c",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "df['Attrition'].value_counts().plot(kind='bar',title='Attrition Distribution'); plt.show()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "f517c7bd",
+   "metadata": {},
+   "source": [
+    "## Model Training\n",
+    "Run `src/train_models.py` from the project root for the complete preprocessing, multiple-model comparison, evaluation and tuning workflow."
+   ]
+  }
+ ],
+ "metadata": {},
+ "nbformat": 4,
+ "nbformat_minor": 5
+}

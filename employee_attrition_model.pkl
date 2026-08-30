@@ -1,0 +1,95 @@
+# Employee Attrition Prediction using Machine Learning
+
+## 1. Problem Identification
+Employee attrition creates recruitment cost, knowledge loss and productivity issues. This project predicts whether an employee is likely to leave the organization using demographic, job and satisfaction-related features.
+
+**Objective:** Build a classification model that predicts `Attrition` (Yes/No) and provide a simple prediction UI.
+
+## 2. Dataset and Preprocessing
+- Dataset: IBM HR Employee Attrition dataset
+- Records: 1470
+- Original features: 34
+- Target: Attrition
+- Steps: duplicate check, missing-value handling, removal of constant/ID-like columns, one-hot encoding, numerical scaling, and stratified 80/20 train-test split.
+
+## 3. EDA and Visualization
+See `reports/figures/` for:
+- Attrition distribution
+- Age distribution by attrition
+- Overtime vs attrition
+- Correlation heatmap
+- Model comparison
+
+## 4. ML Algorithm Implementation
+The following algorithms were implemented:
+1. Logistic Regression
+2. Random Forest Classifier
+3. Gradient Boosting Classifier
+
+Models were compared using Accuracy, Precision, Recall, F1 Score and ROC-AUC.
+
+## 5. Model Evaluation
+The classification problem is imbalanced, so F1 and ROC-AUC are emphasized.
+
+### Model comparison
+| Model               |   Accuracy |   Precision |   Recall |   F1 Score |   ROC-AUC |
+|:--------------------|-----------:|------------:|---------:|-----------:|----------:|
+| Logistic Regression |   0.751701 |    0.348837 | 0.638298 |   0.451128 |  0.80317  |
+| Gradient Boosting   |   0.860544 |    0.714286 | 0.212766 |   0.327869 |  0.805065 |
+| Random Forest       |   0.846939 |    0.625    | 0.106383 |   0.181818 |  0.790335 |
+
+## 6. Model Improvement
+Logistic Regression was improved using GridSearchCV hyperparameter tuning.
+
+Best parameter: `{'model__C': 0.1}`
+
+Improved metrics:
+|   Accuracy |   Precision |   Recall |   F1 Score |   ROC-AUC |
+|-----------:|------------:|---------:|-----------:|----------:|
+|   0.772109 |    0.380952 | 0.680851 |    0.48855 |  0.812387 |
+
+## 7. Application/UI
+A Streamlit application is provided in `app.py`.
+
+Run locally:
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+## 8. GitHub Repository
+Upload the complete project folder to a public GitHub repository. The repository should include source code, dataset, model, reports, README and requirements.
+
+## 9. Deployment
+Deployment instructions are in `deployment/README_DEPLOYMENT.md`. The app can be deployed using Streamlit Community Cloud.
+
+## 10. Presentation and Viva
+### Suggested 2-minute explanation
+“This project predicts employee attrition using machine learning. The dataset contains employee demographic, job and satisfaction information. I cleaned and preprocessed the data, performed exploratory analysis, and split the data into training and testing sets. I implemented Logistic Regression, Random Forest and Gradient Boosting models. Because attrition data is imbalanced, I compared models using precision, recall, F1 score and ROC-AUC. I improved the selected model using GridSearchCV. Finally, I saved the trained model and built a Streamlit application for user predictions.”
+
+### Possible Viva Questions
+1. What is employee attrition?
+2. Why is this a classification problem?
+3. What is the target variable?
+4. Why is preprocessing necessary?
+5. Why use train-test split?
+6. Why is F1 score useful for imbalanced data?
+7. What is overfitting?
+8. What is hyperparameter tuning?
+9. Why use GridSearchCV?
+10. How does the Streamlit app use the trained model?
+
+## Project Structure
+```text
+Employee_Attrition_Prediction_Complete/
+├── data/
+├── models/
+├── notebooks/
+├── reports/figures/
+├── src/
+├── deployment/
+├── app.py
+├── requirements.txt
+├── README.md
+└── .gitignore
+```
