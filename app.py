@@ -6,9 +6,10 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, accuracy_score, f1_score
-
 df=pd.read_csv('employee_attrition.csv')
-X=df.drop(columns=['Attrition','EmployeeCount','EmployeeNumber','Over18','StandardHours'])
+drop_cols = ['Attrition', 'EmployeeCount', 'EmployeeNumber', 'Over18', 'StandardHours']
+
+X = df.drop(columns=[col for col in drop_cols if col in df.columns])
 y=(df['Attrition']=='Yes').astype(int)
 num=X.select_dtypes(include=np.number).columns
 cat=X.select_dtypes(exclude=np.number).columns
