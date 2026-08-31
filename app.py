@@ -1,169 +1,72 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import os
-
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-
-# --------------------------------------------------
-# PAGE
-# --------------------------------------------------
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score
+)
 
 st.set_page_config(
     page_title="Employee Attrition Prediction",
-    page_icon="👨‍💼",
+    page_icon="👩‍💼",
     layout="wide"
 )
 
 st.title("Employee Attrition Prediction")
 st.write("Predict whether an employee is likely to leave the organization.")
 
-# --------------------------------------------------
-# FIND DATASET
-# --------------------------------------------------
+# ------------------------------------------------
+# LOAD DATASET
+# ------------------------------------------------
 
-csv_files = [
-    f for f in os.listdir(".")
-    if f.lower().endswith(".csv")
-]
+DATA_FILE = "employee_attrition.csv"
 
-if len(csv_files) == 0:
-    st.error("No CSV dataset found in the project folder.")
+try:
+    df = pd.read_csv(DATA_FILE, encoding="latin1")
+except Exception as e:
+    st.error("Unable to load employee_attrition.csv")
+    st.write(e)
     st.stop()
 
-# Try each CSV until a valid one is found
-df = None
-used_file = None
+# Clean column names
+df.columns = df.columns.astype(str).str.strip()
 
-for file in csv_files:
+# ------------------------------------------------
+# CHECK FOR CORRECT EMPLOYEE ATTRITION DATA
+# ------------------------------------------------
 
-    try:
-        temp = pd.read_csv(file, encoding="utf-8")
-        df = temp
-        used_file = file
-        break
-
-    except UnicodeDecodeError:
-
-        try:
-            temp = pd.read_csv(file, encoding="latin1")
-            df = temp
-            used_file = file
-            break
-
-        except Exception:
-            continue
-
-    except Exception:
-        continue
-
-if df is None:
-    st.error("Unable to read the CSV dataset.")
-    st.stop()
-
-st.success(f"Dataset loaded: {used_file}")
-
-# --------------------------------------------------
-# CLEAN COLUMN NAMES
-# --------------------------------------------------
-
-df.columns = (
-    df.columns
-    .astype(str)
-    .str.strip()
-)
-
-# --------------------------------------------------
-# FIND TARGET COLUMN
-# --------------------------------------------------
-
-possible_targets = [
-    "Attrition",
-    "attrition",
-    "Employee_Attrition",
-    "employee_attrition",
-    "Left",
-    "left",
-    "Exited",
-    "exited",
-    "Turnover",
-    "turnover"
+required_columns = [
+    "Age",
+    "Attrition"
 ]
 
-target = None
+if not all(col in df.columns for col in required_columns):
 
-for col in possible_targets:
-    if col in df.columns:
-        target = col
-        break
+    st.error(
+        "The uploaded employee_attrition.csv is not the correct Employee Attrition dataset."
+    )
 
-# If Attrition is not found, search column names
-if target is None:
+    st.write("Columns found in the file:")
+    st.write(df.columns.tolist())
 
-    for col in df.columns:
-        if "attrition" in col.lower():
-            target = col
-            break
+    st.info(
+        "Please upload the correct Employee Attrition CSV containing an 'Attrition' column."
+    )
 
-# Last fallback
-if target is None:
-    target = df.columns[-1]
+    st.stop()
 
-st.info(f"Target column: {target}")
-
-# --------------------------------------------------
-# REMOVE DUPLICATES
-# --------------------------------------------------
+# ------------------------------------------------
+# DATA PREPROCESSING
+# ------------------------------------------------
 
 df = df.drop_duplicates()
 
-# --------------------------------------------------
-# SEPARATE FEATURES AND TARGET
-# --------------------------------------------------
-
-X = df.drop(columns=[target])
-y = df[target]
-
-# --------------------------------------------------
-# TARGET ENCODING
-# --------------------------------------------------
-
-if y.dtype == "object":
-
-    y = y.astype(str).str.strip()
-
-    # Common Yes/No format
-    y = y.replace({
-        "Yes": 1,
-        "No": 0,
-        "YES": 1,
-        "NO": 0,
-        "yes": 1,
-        "no": 0
-    })
-
-    # If still categorical, encode automatically
-    if not pd.api.types.is_numeric_dtype(y):
-
-        encoder = LabelEncoder()
-        y = encoder.fit_transform(y)
-
-else:
-    y = pd.to_numeric(y, errors="coerce")
-
-# Remove rows with invalid target
-valid = y.notna()
-
-X = X.loc[valid].copy()
-y = y.loc[valid].astype(int)
-
-# --------------------------------------------------
-# REMOVE UNNECESSARY COLUMNS
-# --------------------------------------------------
-
+# Remove unnecessary columns
 remove_columns = [
     "EmployeeCount",
     "EmployeeNumber",
@@ -171,27 +74,45 @@ remove_columns = [
     "StandardHours"
 ]
 
-X = X.drop(
-    columns=[c for c in remove_columns if c in X.columns],
+df = df.drop(
+    columns=[
+        c for c in remove_columns
+        if c in df.columns
+    ],
     errors="ignore"
 )
 
-# --------------------------------------------------
-# ENCODE CATEGORICAL FEATURES
-# --------------------------------------------------
+# Target
+y = df["Attrition"].map({
+    "Yes": 1,
+    "No": 0
+})
 
+# Remove invalid target rows
+valid_rows = y.notna()
+
+df = df.loc[valid_rows].copy()
+y = y.loc[valid_rows].astype(int)
+
+# Features
+X = df.drop(
+    columns=["Attrition"],
+    errors="ignore"
+)
+
+# Convert categorical variables
 X = pd.get_dummies(
     X,
     drop_first=True
 )
 
-# Convert everything to numeric
+# Convert numeric
 X = X.apply(
     pd.to_numeric,
     errors="coerce"
 )
 
-# Fill missing values
+# Handle missing values
 X = X.replace(
     [np.inf, -np.inf],
     np.nan
@@ -199,9 +120,9 @@ X = X.replace(
 
 X = X.fillna(0)
 
-# --------------------------------------------------
+# ------------------------------------------------
 # TRAIN TEST SPLIT
-# --------------------------------------------------
+# ------------------------------------------------
 
 X_train, X_test, y_train, y_test = train_test_split(
     X,
@@ -211,9 +132,9 @@ X_train, X_test, y_train, y_test = train_test_split(
     stratify=y
 )
 
-# --------------------------------------------------
+# ------------------------------------------------
 # MODEL
-# --------------------------------------------------
+# ------------------------------------------------
 
 model = GradientBoostingClassifier(
     random_state=42
@@ -224,79 +145,183 @@ model.fit(
     y_train
 )
 
-# --------------------------------------------------
+# ------------------------------------------------
 # EVALUATION
-# --------------------------------------------------
+# ------------------------------------------------
 
-prediction = model.predict(X_test)
+y_pred = model.predict(X_test)
 
 accuracy = accuracy_score(
     y_test,
-    prediction
+    y_pred
 )
 
 precision = precision_score(
     y_test,
-    prediction,
+    y_pred,
     zero_division=0
 )
 
 recall = recall_score(
     y_test,
-    prediction,
+    y_pred,
     zero_division=0
 )
 
 f1 = f1_score(
     y_test,
-    prediction,
+    y_pred,
     zero_division=0
 )
 
-# --------------------------------------------------
-# METRICS
-# --------------------------------------------------
+# ------------------------------------------------
+# DISPLAY METRICS
+# ------------------------------------------------
 
 st.subheader("Model Performance")
 
-c1, c2, c3, c4 = st.columns(4)
+col1, col2, col3, col4 = st.columns(4)
 
-c1.metric("Accuracy", f"{accuracy:.4f}")
-c2.metric("Precision", f"{precision:.4f}")
-c3.metric("Recall", f"{recall:.4f}")
-c4.metric("F1 Score", f"{f1:.4f}")
-
-# --------------------------------------------------
-# USER INPUT
-# --------------------------------------------------
-
-st.subheader("Employee Prediction")
-
-input_data = {}
-
-for col in X.columns:
-
-    input_data[col] = float(
-        X[col].median()
-    )
-
-input_df = pd.DataFrame(
-    [input_data]
+col1.metric(
+    "Accuracy",
+    f"{accuracy:.4f}"
 )
 
-input_df = input_df[X.columns]
+col2.metric(
+    "Precision",
+    f"{precision:.4f}"
+)
 
-# --------------------------------------------------
+col3.metric(
+    "Recall",
+    f"{recall:.4f}"
+)
+
+col4.metric(
+    "F1 Score",
+    f"{f1:.4f}"
+)
+
+# ------------------------------------------------
 # PREDICTION
-# --------------------------------------------------
+# ------------------------------------------------
 
-if st.button("Predict Attrition"):
+st.subheader("Employee Details")
 
-    result = model.predict(input_df)[0]
+age = st.number_input(
+    "Age",
+    min_value=18,
+    max_value=70,
+    value=30
+)
+
+monthly_income = st.number_input(
+    "Monthly Income",
+    min_value=1000,
+    max_value=200000,
+    value=5000
+)
+
+years_at_company = st.number_input(
+    "Years At Company",
+    min_value=0,
+    max_value=50,
+    value=3
+)
+
+total_working_years = st.number_input(
+    "Total Working Years",
+    min_value=0,
+    max_value=50,
+    value=8
+)
+
+job_satisfaction = st.slider(
+    "Job Satisfaction",
+    1,
+    4,
+    3
+)
+
+environment_satisfaction = st.slider(
+    "Environment Satisfaction",
+    1,
+    4,
+    3
+)
+
+job_involvement = st.slider(
+    "Job Involvement",
+    1,
+    4,
+    3
+)
+
+work_life_balance = st.slider(
+    "Work Life Balance",
+    1,
+    4,
+    3
+)
+
+overtime = st.selectbox(
+    "OverTime",
+    ["Yes", "No"]
+)
+
+# ------------------------------------------------
+# PREDICTION BUTTON
+# ------------------------------------------------
+
+if st.button(
+    "Predict Attrition",
+    type="primary"
+):
+
+    # Start with all model features as zero
+    input_data = pd.DataFrame(
+        np.zeros(
+            (1, len(X.columns))
+        ),
+        columns=X.columns
+    )
+
+    # Numerical features
+    for col, value in {
+        "Age": age,
+        "MonthlyIncome": monthly_income,
+        "YearsAtCompany": years_at_company,
+        "TotalWorkingYears": total_working_years,
+        "JobSatisfaction": job_satisfaction,
+        "EnvironmentSatisfaction": environment_satisfaction,
+        "JobInvolvement": job_involvement,
+        "WorkLifeBalance": work_life_balance
+    }.items():
+
+        if col in input_data.columns:
+            input_data[col] = value
+
+    # OverTime
+    if overtime == "Yes":
+
+        overtime_columns = [
+            c for c in X.columns
+            if "OverTime_Yes" in c
+        ]
+
+        for col in overtime_columns:
+            input_data[col] = 1
+
+    # Prediction
+    result = model.predict(
+        input_data
+    )[0]
 
     probability = model.predict_proba(
-        input_df
+        input_data
     )[0][1]
+
+    st.subheader("Prediction Result")
 
     if result == 1:
 
@@ -314,27 +339,22 @@ if st.button("Predict Attrition"):
         f"Attrition Probability: {probability:.2%}"
     )
 
-# --------------------------------------------------
-# DATASET INFO
-# --------------------------------------------------
+# ------------------------------------------------
+# DATASET INFORMATION
+# ------------------------------------------------
 
 with st.expander("Dataset Information"):
 
     st.write(
-        f"Rows: {df.shape[0]}"
+        "Dataset Shape:",
+        df.shape
     )
 
     st.write(
-        f"Columns: {df.shape[1]}"
+        "Number of Features:",
+        X.shape[1]
     )
 
     st.write(
-        "Features used:",
-        list(X.columns)
-    )
-
-st.divider()
-
-st.caption(
-    "Employee Attrition Prediction | Machine Learning Project"
-        )
+        "Target Variable: Attrition"
+)
