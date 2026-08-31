@@ -1,6 +1,10 @@
 import streamlit as st
-import joblib
 import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.metrics import accuracy_score
 import os
 
 st.set_page_config(
@@ -12,54 +16,160 @@ st.set_page_config(
 st.title("Employee Attrition Prediction")
 st.write("Predict whether an employee is likely to leave the organization.")
 
-# Load model
-model_path = "employee_attrition_model.pkl"
+# -----------------------------
+# Load Dataset
+# -----------------------------
 
-if not os.path.exists(model_path):
-    st.error("Model file not found.")
+DATA_PATH = "employee_attrition.csv"
+
+if not os.path.exists(DATA_PATH):
+    st.error("Dataset file not found: employee_attrition.csv")
     st.stop()
 
-model = joblib.load(model_path)
+df = pd.read_csv(DATA_PATH)
+
+# -----------------------------
+# Check Target
+# -----------------------------
+
+if "Attrition" not in df.columns:
+    st.error("Attrition column not found in the dataset.")
+    st.write("Available columns:", df.columns.tolist())
+    st.stop()
+
+# -----------------------------
+# Preprocessing
+# -----------------------------
+
+df = df.drop_duplicates()
+
+# Remove unnecessary columns if they exist
+drop_columns = [
+    "EmployeeCount",
+    "EmployeeNumber",
+    "Over18",
+    "StandardHours"
+]
+
+df = df.drop(
+    columns=[c for c in drop_columns if c in df.columns]
+)
+
+# Target encoding
+df["Attrition"] = df["Attrition"].map({
+    "Yes": 1,
+    "No": 0
+})
+
+df = df.dropna(subset=["Attrition"])
+
+# Separate X and y
+X = df.drop(columns=["Attrition"])
+y = df["Attrition"]
+
+# Convert categorical columns
+X = pd.get_dummies(X, drop_first=True)
+
+# Fill missing values
+X = X.fillna(0)
+
+# -----------------------------
+# Train Model
+# -----------------------------
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.20,
+    random_state=42,
+    stratify=y
+)
+
+model = GradientBoostingClassifier(
+    random_state=42
+)
+
+model.fit(X_train, y_train)
+
+# Accuracy
+predictions = model.predict(X_test)
+
+accuracy = accuracy_score(
+    y_test,
+    predictions
+)
+
+# -----------------------------
+# Display Model Accuracy
+# -----------------------------
+
+st.success(
+    f"Model Accuracy: {accuracy:.4f}"
+)
+
+# -----------------------------
+# User Inputs
+# -----------------------------
 
 st.subheader("Enter Employee Details")
 
-# Create inputs
-age = st.number_input("Age", min_value=18, max_value=70, value=30)
-monthly_income = st.number_input("Monthly Income", min_value=1000, value=5000)
-years_at_company = st.number_input("Years at Company", min_value=0, value=3)
-total_working_years = st.number_input("Total Working Years", min_value=0, value=8)
-job_satisfaction = st.slider("Job Satisfaction", 1, 4, 3)
-environment_satisfaction = st.slider("Environment Satisfaction", 1, 4, 3)
-job_involvement = st.slider("Job Involvement", 1, 4, 3)
-work_life_balance = st.slider("Work Life Balance", 1, 4, 3)
-overtime = st.selectbox("OverTime", ["Yes", "No"])
+input_values = {}
+
+for column in X.columns:
+
+    if "_" in column:
+
+        input_values[column] = 0
+
+    else:
+
+        default_value = float(
+            X[column].median()
+        )
+
+        input_values[column] = st.number_input(
+            column,
+            value=default_value
+        )
+
+# -----------------------------
+# Prediction
+# -----------------------------
 
 if st.button("Predict Attrition"):
 
-    # Basic input dataframe
-    input_data = pd.DataFrame({
-        "Age": [age],
-        "MonthlyIncome": [monthly_income],
-        "YearsAtCompany": [years_at_company],
-        "TotalWorkingYears": [total_working_years],
-        "JobSatisfaction": [job_satisfaction],
-        "EnvironmentSatisfaction": [environment_satisfaction],
-        "JobInvolvement": [job_involvement],
-        "WorkLifeBalance": [work_life_balance],
-        "OverTime": [overtime]
-    })
+    input_df = pd.DataFrame(
+        [input_values]
+    )
 
-    try:
-        prediction = model.predict(input_data)[0]
+    input_df = input_df[X.columns]
 
-        if str(prediction).lower() in ["1", "yes", "true"]:
-            st.error("⚠️ Employee is predicted to leave the organization.")
-        else:
-            st.success("✅ Employee is predicted to stay in the organization.")
+    prediction = model.predict(input_df)[0]
 
-    except Exception as e:
-        st.warning("Prediction model requires the original trained feature set.")
-        st.info("The ML model is successfully loaded. Please use the project notebook for the complete prediction workflow.")
+    probability = model.predict_proba(
+        input_df
+    )[0][1]
+
+    st.subheader("Prediction Result")
+
+    if prediction == 1:
+
+        st.error(
+            "⚠️ Employee is likely to leave the organization."
+        )
+
+    else:
+
+        st.success(
+            "✅ Employee is likely to stay in the organization."
+        )
+
+    st.write(
+        f"Attrition Probability: {probability:.2%}"
+    )
 
 st.divider()
-st.caption("Employee Attrition Prediction | Machine Learning Project")
+
+st.caption(
+    "Employee Attrition Prediction | Machine Learning Project"
+)
