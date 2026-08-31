@@ -1,82 +1,85 @@
-import streamlit as st
+        import streamlit as st
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 import os
 
 st.set_page_config(
     page_title="Employee Attrition Prediction",
-    page_icon="👨‍💼",
-    layout="centered"
+    page_icon="👩‍💼"
 )
 
 st.title("Employee Attrition Prediction")
 st.write("Predict whether an employee is likely to leave the organization.")
 
-# -----------------------------
-# Load Dataset
-# -----------------------------
+# Find CSV automatically
+csv_files = []
 
-DATA_PATH = "employee_attrition.csv"
+for file in os.listdir("."):
+    if file.lower().endswith(".csv"):
+        csv_files.append(file)
 
-if not os.path.exists(DATA_PATH):
-    st.error("Dataset file not found: employee_attrition.csv")
+if not csv_files:
+    st.error("CSV dataset not found.")
     st.stop()
 
-df = pd.read_csv(DATA_PATH)
+df = pd.read_csv(csv_files[0])
 
-# -----------------------------
-# Check Target
-# -----------------------------
+# Clean column names
+df.columns = df.columns.astype(str).str.strip()
 
-if "Attrition" not in df.columns:
-    st.error("Attrition column not found in the dataset.")
-    st.write("Available columns:", df.columns.tolist())
-    st.stop()
-
-# -----------------------------
-# Preprocessing
-# -----------------------------
-
-df = df.drop_duplicates()
-
-# Remove unnecessary columns if they exist
-drop_columns = [
-    "EmployeeCount",
-    "EmployeeNumber",
-    "Over18",
-    "StandardHours"
+# Automatically find target column
+possible_targets = [
+    "Attrition",
+    "attrition",
+    "Employee_Attrition",
+    "employee_attrition",
+    "Left",
+    "left",
+    "Exited",
+    "exited",
+    "Turnover",
+    "turnover"
 ]
 
-df = df.drop(
-    columns=[c for c in drop_columns if c in df.columns]
-)
+target = None
 
-# Target encoding
-df["Attrition"] = df["Attrition"].map({
-    "Yes": 1,
-    "No": 0
-})
+for col in possible_targets:
+    if col in df.columns:
+        target = col
+        break
 
-df = df.dropna(subset=["Attrition"])
+# If target is not found, use the last column
+if target is None:
+    target = df.columns[-1]
+
+st.info(f"Target variable used: {target}")
+
+# Remove duplicate rows
+df = df.drop_duplicates()
 
 # Separate X and y
-X = df.drop(columns=["Attrition"])
-y = df["Attrition"]
+X = df.drop(columns=[target])
+y = df[target]
 
-# Convert categorical columns
+# Encode categorical columns
 X = pd.get_dummies(X, drop_first=True)
 
+# Convert target to numeric
+if y.dtype == "object":
+    encoder = LabelEncoder()
+    y = encoder.fit_transform(y.astype(str))
+else:
+    y = y.astype(int)
+
 # Fill missing values
+X = X.replace([np.inf, -np.inf], np.nan)
 X = X.fillna(0)
 
-# -----------------------------
-# Train Model
-# -----------------------------
-
+# Train-test split
 X_train, X_test, y_train, y_test = train_test_split(
     X,
     y,
@@ -85,91 +88,46 @@ X_train, X_test, y_train, y_test = train_test_split(
     stratify=y
 )
 
-model = GradientBoostingClassifier(
+# Train model
+model = RandomForestClassifier(
+    n_estimators=100,
     random_state=42
 )
 
 model.fit(X_train, y_train)
 
-# Accuracy
-predictions = model.predict(X_test)
+# Evaluation
+pred = model.predict(X_test)
+accuracy = accuracy_score(y_test, pred)
 
-accuracy = accuracy_score(
-    y_test,
-    predictions
-)
+st.success(f"Model Accuracy: {accuracy:.4f}")
 
-# -----------------------------
-# Display Model Accuracy
-# -----------------------------
+# Prediction section
+st.subheader("Employee Details")
 
-st.success(
-    f"Model Accuracy: {accuracy:.4f}"
-)
+input_data = {}
 
-# -----------------------------
-# User Inputs
-# -----------------------------
+for col in X.columns:
 
-st.subheader("Enter Employee Details")
-
-input_values = {}
-
-for column in X.columns:
-
-    if "_" in column:
-
-        input_values[column] = 0
-
+    if X[col].dtype in ["int64", "float64"]:
+        input_data[col] = st.number_input(
+            col,
+            value=float(X[col].median())
+        )
     else:
+        input_data[col] = 0
 
-        default_value = float(
-            X[column].median()
-        )
-
-        input_values[column] = st.number_input(
-            column,
-            value=default_value
-        )
-
-# -----------------------------
-# Prediction
-# -----------------------------
+input_df = pd.DataFrame([input_data])
+input_df = input_df[X.columns]
 
 if st.button("Predict Attrition"):
 
-    input_df = pd.DataFrame(
-        [input_values]
-    )
-
-    input_df = input_df[X.columns]
-
     prediction = model.predict(input_df)[0]
 
-    probability = model.predict_proba(
-        input_df
-    )[0][1]
-
-    st.subheader("Prediction Result")
-
     if prediction == 1:
-
-        st.error(
-            "⚠️ Employee is likely to leave the organization."
-        )
-
+        st.error("⚠️ Employee is likely to leave the organization.")
     else:
-
-        st.success(
-            "✅ Employee is likely to stay in the organization."
-        )
-
-    st.write(
-        f"Attrition Probability: {probability:.2%}"
-    )
+        st.success("✅ Employee is likely to stay in the organization.")
 
 st.divider()
-
-st.caption(
-    "Employee Attrition Prediction | Machine Learning Project"
-)
+st.caption("Employee Attrition Prediction | Machine Learning Project")
