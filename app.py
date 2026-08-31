@@ -7,7 +7,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, accuracy_score, f1_score
 
-df=pd.read_csv('data/employee_attrition.csv')
+df=pd.read_csv('employee_attrition.csv')
 X=df.drop(columns=['Attrition','EmployeeCount','EmployeeNumber','Over18','StandardHours'])
 y=(df['Attrition']=='Yes').astype(int)
 num=X.select_dtypes(include=np.number).columns
